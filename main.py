@@ -54,7 +54,7 @@ def get_retriever(vector_store):
         search_kwargs={
             "k": 5,
             "fetch_k": 10,
-            "lambda_mult": 0.7
+            "lambda_mult": 0.5
         }
     )
 
