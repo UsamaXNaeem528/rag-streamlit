@@ -3,6 +3,7 @@ import tempfile
 
 import streamlit as st
 
+# Note: Ensure ingest.py exports 'ingest_document' or 'complete_ingestion'
 from ingest import ingest_document
 from main import ask_question
 
@@ -14,7 +15,8 @@ from main import ask_question
 st.set_page_config(
     page_title="RAG Document Assistant",
     page_icon="📚",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 
@@ -23,251 +25,111 @@ st.set_page_config(
 # ==================================================
 
 if "vector_store" not in st.session_state:
-
     st.session_state.vector_store = None
 
-
 if "file_name" not in st.session_state:
-
     st.session_state.file_name = None
 
-
 if "messages" not in st.session_state:
-
     st.session_state.messages = []
 
 
 # ==================================================
-# Title
+# Header
 # ==================================================
 
 st.title("📚 RAG Document Assistant")
-
-st.write(
-    "Upload a PDF and ask questions about its content."
-)
-
+st.caption("Upload a PDF to start asking questions about its content.")
 
 # ==================================================
-# Sidebar
+# Main Layout: Document Uploader (Mobile & Desktop Friendly)
 # ==================================================
 
-with st.sidebar:
+# Keep upload section open by default, close it once a file is active
+expander_default = st.session_state.vector_store is None
 
-    st.header("📄 Upload Document")
+with st.expander("📄 Document Management", expanded=expander_default):
+    
+    col1, col2 = st.columns([2, 1])
 
-
-    uploaded_file = st.file_uploader(
-        "Choose a PDF",
-        type=["pdf"]
-    )
-
-
-    if uploaded_file is not None:
-
-        st.info(
-            f"Selected: {uploaded_file.name}"
+    with col1:
+        uploaded_file = st.file_uploader(
+            "Choose a PDF file",
+            type=["pdf"],
+            label_visibility="visible"
         )
 
-
+    with col2:
+        st.write("") # Spacing for vertical alignment
+        st.write("")
         process_button = st.button(
-            "Process Document",
+            "⚡ Process Document",
             type="primary",
-            use_container_width=True
+            use_container_width=True,
+            disabled=(uploaded_file is None)
         )
 
-
-        if process_button:
-
-            # ------------------------------------------
-            # Create temporary PDF
-            # ------------------------------------------
-
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".pdf"
-            ) as temp_file:
-
-                temp_file.write(
-                    uploaded_file.getvalue()
-                )
-
-                temp_file_path = temp_file.name
-
-
-            try:
-
-                # --------------------------------------
-                # Process document
-                # --------------------------------------
-
-                with st.spinner(
-                    "Reading and processing document..."
-                ):
-
-                    (
-                        vector_store,
-                        page_count,
-                        chunk_count
-                    ) = ingest_document(
-                        temp_file_path
-                    )
-
-
-                # --------------------------------------
-                # Save in session state
-                # --------------------------------------
-
-                st.session_state.vector_store = (
-                    vector_store
-                )
-
-                st.session_state.file_name = (
-                    uploaded_file.name
-                )
-
-                # Clear old chat
-
-                st.session_state.messages = []
-
-
-                # --------------------------------------
-                # Success
-                # --------------------------------------
-
-                st.success(
-                    "Document processed successfully!"
-                )
-
-                st.write(
-                    f"📄 Pages: {page_count}"
-                )
-
-                st.write(
-                    f"🧩 Chunks: {chunk_count}"
-                )
-
-
-            except Exception as e:
-
-                st.error(
-                    f"Error processing document: {e}"
-                )
-
-
-            finally:
-
-                # --------------------------------------
-                # Delete temporary PDF
-                # --------------------------------------
-
-                if os.path.exists(
-                    temp_file_path
-                ):
-
-                    os.remove(
-                        temp_file_path
-                    )
-
-
-    # ----------------------------------------------
-    # Current document
-    # ----------------------------------------------
-
+    # Show active document status inside the card
     if st.session_state.file_name:
+        st.success(f"**Active Document:** {st.session_state.file_name}")
 
-        st.divider()
+    if process_button and uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+            temp_file.write(uploaded_file.getvalue())
+            temp_file_path = temp_file.name
 
-        st.subheader("Current document")
+        try:
+            with st.spinner("Reading and processing document..."):
+                (
+                    vector_store,
+                    page_count,
+                    chunk_count
+                ) = ingest_document(temp_file_path)
 
-        st.write(
-            f"📄 {st.session_state.file_name}"
-        )
+            st.session_state.vector_store = vector_store
+            st.session_state.file_name = uploaded_file.name
+            st.session_state.messages = []  # Clear old chat history
 
+            st.toast("Document processed successfully!", icon="✅")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"Error processing document: {e}")
+
+        finally:
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+
+st.divider()
 
 # ==================================================
-# Chat history
+# Chat Interface
 # ==================================================
 
+# Display historical messages
 for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-    with st.chat_message(
-        message["role"]
-    ):
-
-        st.markdown(
-            message["content"]
-        )
-
-
-# ==================================================
-# Chat input
-# ==================================================
-
-query = st.chat_input(
-    "Ask something about your document..."
-)
-
+# User Query Input
+query = st.chat_input("Ask something about your document...")
 
 if query:
-
-    # ----------------------------------------------
-    # Make sure document exists
-    # ----------------------------------------------
-
     if st.session_state.vector_store is None:
-
-        st.warning(
-            "Please upload and process a document first."
-        )
-
+        st.warning("Please upload and process a document first.")
         st.stop()
 
-
-    # ----------------------------------------------
-    # User message
-    # ----------------------------------------------
-
-    st.session_state.messages.append({
-        "role": "user",
-        "content": query
-    })
-
-
+    # Append user input
+    st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user"):
-
         st.markdown(query)
 
-
-    # ----------------------------------------------
-    # AI response
-    # ----------------------------------------------
-
+    # Generate Assistant response
     with st.chat_message("assistant"):
-
-        with st.spinner(
-            "Searching the document..."
-        ):
-
+        with st.spinner("Searching document..."):
             try:
-
-                answer = ask_question(
-                    query,
-                    st.session_state.vector_store
-                )
-
-
+                answer = ask_question(query, st.session_state.vector_store)
                 st.markdown(answer)
-
-
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": answer
-                })
-
-
+                st.session_state.messages.append({"role": "assistant", "content": answer})
             except Exception as e:
-
-                st.error(
-                    f"Error: {e}"
-                )
+                st.error(f"Error generating answer: {e}")
