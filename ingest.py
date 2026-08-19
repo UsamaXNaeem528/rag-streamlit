@@ -85,5 +85,5 @@ def ingest_document(file_path, persiste_directory='chroma-db'):
     return vector_store, len(docs), len(chunks)
 
 if __name__ == '__main__':
-    file_path = r'C:\Users\Admin\Downloads\Deep Learning.pdf'
+    file_path = r'C:\Users\Admin\Downloads\iso27001.pdf'
     ingest_document(file_path)

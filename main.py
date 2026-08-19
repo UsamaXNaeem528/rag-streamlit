@@ -50,12 +50,10 @@ template = ChatPromptTemplate.from_messages([
 
 def get_retriever(vector_store):
     retriever = vector_store.as_retriever(
-          search_type="mmr",
+          search_type="similarity",
         search_kwargs={
-            "k": 5,
-            "fetch_k": 10,
-            "lambda_mult": 0.5
-        }
+        "k": 5,
+    }
     )
 
     return retriever
@@ -84,6 +82,6 @@ def ask_question(query, vector_store):
     return response.content
 
 if __name__ == '__main__':
-    query = 'what is the regularization in deep learning'
+    query = 'What does Clause 5.2 require regarding the Information Security Policy?'
     response = ask_question(query, vector_store)
     print(response)
