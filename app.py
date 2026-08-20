@@ -3,7 +3,6 @@ import tempfile
 
 import streamlit as st
 
-# Note: Ensure ingest.py exports 'ingest_document' or 'complete_ingestion'
 from ingest import ingest_document
 from main import ask_question
 

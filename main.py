@@ -1,7 +1,14 @@
+# main.py
 from langchain_mistralai import ChatMistralAI
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
+from ingest import bm25_retriever
+from langchain_classic.retrievers import EnsembleRetriever
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -45,20 +52,42 @@ template = ChatPromptTemplate.from_messages([
 
 
 #-------------------------
-# Retriever
+# Retriever Hyrbid(Vector + B2)
 #-------------------------
 
-def get_retriever(vector_store):
-    retriever = vector_store.as_retriever(
-          search_type="mmr",
+def vector_retriever(vector_store):
+    vector_retriever = vector_store.as_retriever(
+          search_type="similarity",
         search_kwargs={
             "k": 5,
-            "fetch_k": 10,
-            "lambda_mult": 0.5
         }
     )
+    return vector_retriever
 
-    return retriever
+
+def hybrid_retriever(vector_store):
+
+    '''RRF (Reciprocal Rank Fusion) combines document lists by their ranks.'''
+    bm25_vector_retriver = EnsembleRetriever(
+        retrievers = [bm25_retriever(), vector_retriever(vector_store)],
+        weights = [0.4, 0.6],    #0.4 = bm25m , 0.6 = vector retriever
+        c=60  #RRF constant
+        )
+
+    '''Cross Encoder Reranker'''
+    cross_encoder_model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
+    reranker = CrossEncoderReranker(
+        model = cross_encoder_model,
+        top_n=10
+    )
+
+    '''CONTEXTUAL COMPRESSION RETRIEVER (Hybrid Retriever -> Cross Encoder -> Top n chunks)'''
+    compression_retriever = ContextualCompressionRetriever(
+        base_retriever = bm25_vector_retriver,
+        base_compressor = reranker
+    )
+
+    return compression_retriever
 
 
 #------------------------
@@ -67,11 +96,11 @@ def get_retriever(vector_store):
 
 def ask_question(query, vector_store):
 
-    retriever = get_retriever(vector_store)
-    docs = retriever.invoke(query)
+    retriever = hybrid_retriever(vector_store)
+    relevant_docs = retriever.invoke(query)
 
     context = '\n\n'.join(
-      doc.page_content for doc in docs
+      doc.page_content for doc in relevant_docs
     )
 
     final_prompt = template.invoke({

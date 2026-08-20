@@ -1,7 +1,9 @@
+# ingest.py
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_community.retrievers import BM25Retriever
 
 
 #* Embedding Model
@@ -83,6 +85,24 @@ def ingest_document(file_path, persiste_directory='chroma-db'):
     vector_store = create_vector_store(chunks, persiste_directory)
 
     return vector_store, len(docs), len(chunks)
+
+
+#* bm25 retriever
+def bm25_retriever(file_path=r'C:\Users\Admin\Downloads\iso27001.pdf'):
+    print('BM25 retriever')
+    print('1. LoadPDF')
+    docs = load_document(file_path)
+    
+    print('2. Splitting / Chunking the Documents')
+    chunks = split_document(docs)
+    
+    print('3. Clean the documents')
+    chunks = clean_chunks(chunks)
+    
+    retriever = BM25Retriever.from_documents(chunks)
+    retriever.k = 5
+    return retriever
+
 
 if __name__ == '__main__':
     file_path = r'C:\Users\Admin\Downloads\iso27001.pdf'

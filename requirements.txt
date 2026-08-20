@@ -2,6 +2,7 @@ streamlit
 python-dotenv
 
 langchain
+langchain-classic
 langchain-core
 langchain-community
 langchain-text-splitters

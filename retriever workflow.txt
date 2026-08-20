@@ -1,0 +1,34 @@
+                USER QUERY
+                        │
+            ┌───────────┴───────────┐
+            ▼                       ▼
+          BM25                  Vector DB
+            │                       │
+            └───────────┬───────────┘
+                        ▼
+               EnsembleRetriever
+                        │
+                        ▼
+                  RRF Fusion
+                        │
+                        ▼
+                Top 20–100 Docs
+                        │
+                        ▼
+              ContextualCompression
+                  Retriever
+                        │
+                        ▼
+                   Reranker
+                        │
+                        ▼
+                   Top 5 Docs
+                        │
+                        ▼
+                Prompt + Context
+                        │
+                        ▼
+                       LLM
+                        │
+                        ▼
+                     Answer
