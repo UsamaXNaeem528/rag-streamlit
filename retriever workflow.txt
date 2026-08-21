@@ -31,4 +31,3 @@
                        LLM
                         │
                         ▼
-                     Answer
