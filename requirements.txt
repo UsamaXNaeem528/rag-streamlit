@@ -2,15 +2,19 @@ streamlit
 python-dotenv
 
 langchain
-langchain-classic
-langchain-core
 langchain-community
-langchain-text-splitters
-
-langchain-mistralai
-langchain-huggingface
+langchain-core
+langchain-classic
 langchain-chroma
+langchain-huggingface
+langchain-mistralai
 
 chromadb
+
 sentence-transformers
+transformers
+torch
+
+rank_bm25
+
 pypdf
